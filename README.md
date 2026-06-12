@@ -1,6 +1,8 @@
-# Broken Login Demo
+# Broken Taskboard Demo
 
-This is a deliberately broken Node/Express web app for testing bug-fixing agents and Playwright-based debugging pipelines.
+A deliberately broken Express and vanilla JavaScript task manager for testing autonomous browser-based bug reproduction and repair workflows.
+
+Tasks are held in server memory and reset whenever the server restarts.
 
 ## Run
 
@@ -9,37 +11,35 @@ npm install
 npm start
 ```
 
-The app starts at:
+Open `http://localhost:3000`.
 
-```text
-http://localhost:3000
-```
+## Expected Behavior
 
-## Valid Test Login
+After a task is marked complete, selecting the **Active** filter should hide that task. The visible-task count should only include active tasks.
 
-- Email: `demo@example.com`
-- Password: `password123`
+## Actual Broken Behavior
 
-## Reproduce the Bug
+The completion request succeeds and the task is visually marked complete. After switching to the **Active** filter, however, the completed task remains visible and the count incorrectly includes it.
 
-1. Start the app with `npm start`.
-2. Open `http://localhost:3000` in a browser.
-3. Enter an email that does not exist, such as `missing@example.com`.
-4. Enter any password.
-5. Click `Log in`.
+The intentional defect is in the backend filtering logic for `GET /tasks?status=active`. The completion endpoint updates the canonical `completed` property, while the Active filter incorrectly checks an obsolete `state` property.
 
-Expected behavior for a normal app: the page should show a clean invalid-login message.
+## Reproduction Steps
 
-Actual behavior in this intentionally broken demo: `POST /login` returns HTTP 500 because the server tries to read `user.password` when `user` is `undefined`.
+1. Start the app and open `http://localhost:3000`.
+2. Enter a title, choose a priority and due date, then click **Add task**.
+3. Click **Mark complete** on the new task.
+4. Confirm that the row receives completed styling and the button changes to **Completed**.
+5. Click **Active**.
+6. Observe that the completed task still appears and `#visible-count` reports the wrong count.
 
-The bug is in `server.js`:
+For comparison, the **Completed** filter correctly shows completed tasks.
 
-```js
-const user = users.find((u) => u.email === req.body.email);
+## Useful Routes
 
-if (user.password === req.body.password) {
-  res.json({ success: true, message: `Welcome back, ${user.name}!` });
-}
-```
+- `GET /tasks?status=all`
+- `GET /tasks?status=active`
+- `GET /tasks?status=completed`
+- `POST /tasks`
+- `PATCH /tasks/:id/complete`
 
-Do not fix this bug unless you are testing a repair workflow.
+This repository intentionally contains a bug. Do not correct it when preparing the reproduction fixture.

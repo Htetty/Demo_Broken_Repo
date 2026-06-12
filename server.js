@@ -4,178 +4,65 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
+app.use(express.static("public"));
 
-const users = [
-  { email: "demo@example.com", password: "password123", name: "Demo User" }
-];
+let nextTaskId = 1;
+const tasks = [];
 
-app.get("/", (req, res) => {
-  res.type("html").send(`<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Broken Login Demo</title>
-    <style>
-      * {
-        box-sizing: border-box;
-      }
+app.get("/tasks", (req, res) => {
+  const status = req.query.status ?? "all";
+  let visibleTasks = tasks;
 
-      body {
-        margin: 0;
-        min-height: 100vh;
-        display: grid;
-        place-items: center;
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: #f4f7fb;
-        color: #172033;
-      }
+  if (status === "active") {
+    // Deliberate bug: the active filter checks a legacy field that is never updated.
+    visibleTasks = tasks.filter((task) => task.state !== "completed");
+  } else if (status === "completed") {
+    visibleTasks = tasks.filter((task) => task.completed === true);
+  }
 
-      main {
-        width: min(420px, calc(100vw - 32px));
-        padding: 28px;
-        border: 1px solid #d7deea;
-        border-radius: 8px;
-        background: #ffffff;
-        box-shadow: 0 16px 36px rgba(18, 32, 56, 0.08);
-      }
-
-      h1 {
-        margin: 0 0 8px;
-        font-size: 1.5rem;
-      }
-
-      p {
-        margin: 0 0 20px;
-        color: #5b667a;
-      }
-
-      label {
-        display: grid;
-        gap: 6px;
-        margin-bottom: 14px;
-        font-weight: 600;
-      }
-
-      input {
-        width: 100%;
-        border: 1px solid #b9c4d6;
-        border-radius: 6px;
-        padding: 10px 12px;
-        font: inherit;
-      }
-
-      button {
-        width: 100%;
-        border: 0;
-        border-radius: 6px;
-        padding: 11px 14px;
-        font: inherit;
-        font-weight: 700;
-        color: #ffffff;
-        background: #2463eb;
-        cursor: pointer;
-      }
-
-      button:disabled {
-        cursor: wait;
-        opacity: 0.7;
-      }
-
-      #message {
-        min-height: 24px;
-        margin-top: 16px;
-        font-weight: 700;
-      }
-
-      #message.success {
-        color: #137333;
-      }
-
-      #message.error {
-        color: #b3261e;
-      }
-    </style>
-  </head>
-  <body>
-    <main>
-      <h1>Broken Login Demo</h1>
-      <p>Use demo@example.com with password123 for a successful login.</p>
-
-      <form id="login-form">
-        <label>
-          Email
-          <input id="email" name="email" type="email" autocomplete="email" required>
-        </label>
-
-        <label>
-          Password
-          <input id="password" name="password" type="password" autocomplete="current-password" required>
-        </label>
-
-        <button id="login-button" type="submit">Log in</button>
-      </form>
-
-      <div id="message" role="status" aria-live="polite"></div>
-    </main>
-
-    <script>
-      const form = document.querySelector("#login-form");
-      const button = document.querySelector("#login-button");
-      const message = document.querySelector("#message");
-
-      form.addEventListener("submit", async (event) => {
-        event.preventDefault();
-
-        button.disabled = true;
-        message.className = "";
-        message.textContent = "Signing in...";
-
-        const formData = new FormData(form);
-        const payload = {
-          email: formData.get("email"),
-          password: formData.get("password")
-        };
-
-        try {
-          const response = await fetch("/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-          });
-
-          const data = await response.json();
-
-          if (response.ok) {
-            message.className = "success";
-            message.textContent = data.message;
-          } else {
-            message.className = "error";
-            message.textContent = data.error || "Login failed";
-          }
-        } catch (error) {
-          message.className = "error";
-          message.textContent = "Login request failed";
-        } finally {
-          button.disabled = false;
-        }
-      });
-    </script>
-  </body>
-</html>`);
+  res.json({ tasks: visibleTasks, count: visibleTasks.length });
 });
 
-app.post("/login", (req, res) => {
-  const user = users.find((u) => u.email === req.body.email);
+app.post("/tasks", (req, res) => {
+  const { title, priority, dueDate } = req.body;
 
-  // Deliberate bug: when the email is unknown, user is undefined and this throws.
-  if (user.password === req.body.password) {
-    res.json({ success: true, message: `Welcome back, ${user.name}!` });
-  } else {
-    res.status(401).json({ error: "Invalid login" });
+  if (typeof title !== "string" || title.trim() === "") {
+    return res.status(400).json({ error: "A task title is required." });
   }
+
+  if (!["low", "medium", "high"].includes(priority)) {
+    return res.status(400).json({ error: "Priority must be low, medium, or high." });
+  }
+
+  if (typeof dueDate !== "string" || dueDate === "") {
+    return res.status(400).json({ error: "A due date is required." });
+  }
+
+  const task = {
+    id: nextTaskId++,
+    title: title.trim(),
+    priority,
+    dueDate,
+    completed: false,
+    state: "active",
+    createdAt: new Date().toISOString()
+  };
+
+  tasks.push(task);
+  return res.status(201).json({ task });
+});
+
+app.patch("/tasks/:id/complete", (req, res) => {
+  const task = tasks.find((item) => item.id === Number(req.params.id));
+
+  if (!task) {
+    return res.status(404).json({ error: "Task not found." });
+  }
+
+  task.completed = true;
+  return res.json({ success: true, task });
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Taskboard running on http://localhost:${PORT}`);
 });
