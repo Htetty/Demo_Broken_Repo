@@ -169,7 +169,7 @@ app.post("/login", (req, res) => {
   const user = users.find((u) => u.email === req.body.email);
 
   // Deliberate bug: when the email is unknown, user is undefined and this throws.
-  if (user.password === req.body.password) {
+  if (user && user.password === req.body.password) {
     res.json({ success: true, message: `Welcome back, ${user.name}!` });
   } else {
     res.status(401).json({ error: "Invalid login" });
