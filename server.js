@@ -14,8 +14,7 @@ app.get("/tasks", (req, res) => {
   let visibleTasks = tasks;
 
   if (status === "active") {
-    // Deliberate bug: the active filter checks a legacy field that is never updated.
-    visibleTasks = tasks.filter((task) => task.state !== "completed");
+    visibleTasks = tasks.filter((task) => task.completed !== true);
   } else if (status === "completed") {
     visibleTasks = tasks.filter((task) => task.completed === true);
   }
