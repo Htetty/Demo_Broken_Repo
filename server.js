@@ -50,7 +50,7 @@ function createArchiveBatch(archivedTasks) {
   };
 
   for (const task of archivedTasks) {
-    batch.entries.push({ task, batch });
+    batch.entries.push({ task });
   }
 
   return batch;
