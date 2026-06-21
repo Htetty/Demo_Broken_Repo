@@ -8,19 +8,64 @@ app.use(express.static("public"));
 
 let nextTaskId = 1;
 const tasks = [];
+const taskListCache = new Map();
+const CACHE_TTL_MS = 60_000;
+
+function statusFor(task) {
+  return task.completed ? "completed" : "active";
+}
+
+function cacheKey(status) {
+  return `task-list:${status}`;
+}
+
+function readTaskList(status) {
+  const entry = taskListCache.get(cacheKey(status));
+
+  if (!entry || entry.expiresAt <= Date.now()) {
+    return null;
+  }
+
+  return entry.payload;
+}
+
+function writeTaskList(status, payload) {
+  taskListCache.set(cacheKey(status), {
+    payload: structuredClone(payload),
+    expiresAt: Date.now() + CACHE_TTL_MS
+  });
+}
+
+function invalidateTaskLists(statuses) {
+  for (const status of statuses) {
+    taskListCache.delete(cacheKey(status));
+  }
+}
 
 app.get("/tasks", (req, res) => {
   const status = req.query.status ?? "all";
+
+  if (!["all", "active", "completed"].includes(status)) {
+    return res.status(400).json({ error: "Unknown task status." });
+  }
+
+  const cachedPayload = readTaskList(status);
+
+  if (cachedPayload) {
+    return res.json(cachedPayload);
+  }
+
   let visibleTasks = tasks;
 
   if (status === "active") {
-    // Deliberate bug: the active filter checks a legacy field that is never updated.
-    visibleTasks = tasks.filter((task) => task.state !== "completed");
+    visibleTasks = tasks.filter((task) => task.completed === false);
   } else if (status === "completed") {
     visibleTasks = tasks.filter((task) => task.completed === true);
   }
 
-  res.json({ tasks: visibleTasks, count: visibleTasks.length });
+  const payload = { tasks: visibleTasks, count: visibleTasks.length };
+  writeTaskList(status, payload);
+  return res.json(payload);
 });
 
 app.post("/tasks", (req, res) => {
@@ -44,11 +89,11 @@ app.post("/tasks", (req, res) => {
     priority,
     dueDate,
     completed: false,
-    state: "active",
     createdAt: new Date().toISOString()
   };
 
   tasks.push(task);
+  invalidateTaskLists(["all", statusFor(task)]);
   return res.status(201).json({ task });
 });
 
@@ -60,6 +105,7 @@ app.patch("/tasks/:id/complete", (req, res) => {
   }
 
   task.completed = true;
+  invalidateTaskLists(["all", statusFor(task)]);
   return res.json({ success: true, task });
 });
 
