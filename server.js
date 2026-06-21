@@ -45,7 +45,7 @@ function invalidateTaskLists(statuses) {
 app.get("/tasks", (req, res) => {
   const status = req.query.status ?? "all";
 
-  if (!["all", "active", "completed"].includes(status)) {
+  if (!(["all", "active", "completed"].includes(status))) {
     return res.status(400).json({ error: "Unknown task status." });
   }
 
@@ -104,8 +104,9 @@ app.patch("/tasks/:id/complete", (req, res) => {
     return res.status(404).json({ error: "Task not found." });
   }
 
+  const oldStatus = statusFor(task);
   task.completed = true;
-  invalidateTaskLists(["all", statusFor(task)]);
+  invalidateTaskLists(["all", oldStatus, statusFor(task)]);
   return res.json({ success: true, task });
 });
 
