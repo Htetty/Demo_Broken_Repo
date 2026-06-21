@@ -44,12 +44,11 @@ function invalidateTaskLists(statuses) {
   }
 }
 
-function createArchiveBatch(archivedTasks, job) {
+function createArchiveBatch(archivedTasks) {
   const batch = {
     id: `archive-${Date.now()}`,
     createdAt: new Date().toISOString(),
-    entries: [],
-    context: { job }
+    entries: []
   };
 
   for (const task of archivedTasks) {
@@ -89,7 +88,7 @@ async function processArchiveJob(job) {
   job.status = "processing";
   const snapshot = tasks.slice();
   const archivedTasks = tasks.filter((task) => job.taskIds.includes(task.id));
-  const batch = createArchiveBatch(archivedTasks, job);
+  const batch = createArchiveBatch(archivedTasks);
   job.batch = batch;
 
   for (const task of archivedTasks) {
