@@ -49,7 +49,7 @@ function createArchiveBatch(archivedTasks, job) {
     id: `archive-${Date.now()}`,
     createdAt: new Date().toISOString(),
     entries: [],
-    context: { job }
+    context: { jobId: job.id }
   };
 
   for (const task of archivedTasks) {
@@ -118,7 +118,7 @@ async function processArchiveJob(job) {
 app.get("/tasks", (req, res) => {
   const status = req.query.status ?? "all";
 
-  if (!["all", "active", "completed"].includes(status)) {
+  if (![ "all", "active", "completed"].includes(status)) {
     return res.status(400).json({ error: "Unknown task status." });
   }
 
