@@ -42,6 +42,20 @@ function invalidateTaskLists(statuses) {
   }
 }
 
+function createArchiveBatch(archivedTasks) {
+  const batch = {
+    id: `archive-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    entries: []
+  };
+
+  for (const task of archivedTasks) {
+    batch.entries.push({ task, batch });
+  }
+
+  return batch;
+}
+
 app.get("/tasks", (req, res) => {
   const status = req.query.status ?? "all";
 
@@ -97,6 +111,26 @@ app.post("/tasks", (req, res) => {
   return res.status(201).json({ task });
 });
 
+app.post("/tasks/archive-completed", (req, res) => {
+  const archivedTasks = tasks.filter((task) => task.completed);
+
+  if (archivedTasks.length === 0) {
+    return res.status(400).json({ error: "There are no completed tasks to archive." });
+  }
+
+  const archivedIds = new Set(archivedTasks.map((task) => task.id));
+  const batch = createArchiveBatch(archivedTasks);
+
+  for (let index = tasks.length - 1; index >= 0; index -= 1) {
+    if (archivedIds.has(tasks[index].id)) {
+      tasks.splice(index, 1);
+    }
+  }
+
+  invalidateTaskLists(["all", "active", "completed"]);
+  return res.json({ archived: archivedTasks.length, batch });
+});
+
 app.patch("/tasks/:id/complete", (req, res) => {
   const task = tasks.find((item) => item.id === Number(req.params.id));
 
@@ -107,6 +141,16 @@ app.patch("/tasks/:id/complete", (req, res) => {
   task.completed = true;
   invalidateTaskLists(["all", statusFor(task)]);
   return res.json({ success: true, task });
+});
+
+app.use((error, req, res, next) => {
+  console.error(error);
+
+  if (res.headersSent) {
+    return next(error);
+  }
+
+  return res.status(500).json({ error: "The request could not be completed." });
 });
 
 app.listen(PORT, () => {

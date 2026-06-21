@@ -215,6 +215,31 @@ select:focus {
   background: #efeee9;
 }
 
+.task-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.archive-button {
+  border: 1px solid #c8cdc9;
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: #385545;
+  background: #fff;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.archive-button:hover:not(:disabled) {
+  border-color: #638071;
+  background: #f4f8f5;
+}
+
+.archive-button:disabled {
+  opacity: 0.65;
+}
+
 .filter-button {
   border: 0;
   border-radius: 7px;
@@ -238,6 +263,19 @@ select:focus {
   color: #747a75;
   background: #faf9f6;
   font-size: 0.78rem;
+}
+
+#task-status {
+  margin-left: auto;
+  font-weight: 750;
+}
+
+#task-status.success {
+  color: #26704c;
+}
+
+#task-status.error {
+  color: #a23c36;
 }
 
 .task-list {
@@ -377,6 +415,22 @@ select:focus {
 
 .empty-state span {
   font-size: 0.85rem;
+}
+
+@media (max-width: 760px) {
+  .task-toolbar,
+  .task-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .task-actions {
+    width: 100%;
+  }
+
+  form {
+    grid-template-columns: 1fr;
+  }
 }
 
 .empty-state.error strong {

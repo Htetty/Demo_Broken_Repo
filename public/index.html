@@ -60,15 +60,19 @@
             <h2 id="tasks-heading">Tasks</h2>
           </div>
 
-          <div class="filters" aria-label="Filter tasks">
-            <button id="filter-all" class="filter-button active" type="button" data-filter="all">All</button>
-            <button id="filter-active" class="filter-button" type="button" data-filter="active">Active</button>
-            <button id="filter-completed" class="filter-button" type="button" data-filter="completed">Completed</button>
+          <div class="task-actions">
+            <button id="archive-completed" class="archive-button" type="button">Archive completed</button>
+            <div class="filters" aria-label="Filter tasks">
+              <button id="filter-all" class="filter-button active" type="button" data-filter="all">All</button>
+              <button id="filter-active" class="filter-button" type="button" data-filter="active">Active</button>
+              <button id="filter-completed" class="filter-button" type="button" data-filter="completed">Completed</button>
+            </div>
           </div>
         </div>
 
         <div class="list-summary">
           <span><strong id="visible-count">0</strong> visible tasks</span>
+          <span id="task-status" role="status" aria-live="polite"></span>
           <span id="current-filter-label">Showing all tasks</span>
         </div>
 

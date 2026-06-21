@@ -9,6 +9,8 @@ const visibleCount = document.querySelector("#visible-count");
 const currentFilterLabel = document.querySelector("#current-filter-label");
 const filterButtons = [...document.querySelectorAll("[data-filter]")];
 const taskTemplate = document.querySelector("#task-template");
+const archiveButton = document.querySelector("#archive-completed");
+const taskStatus = document.querySelector("#task-status");
 
 let currentFilter = "all";
 
@@ -105,6 +107,30 @@ async function completeTask(taskId, row) {
   }
 }
 
+async function archiveCompletedTasks() {
+  archiveButton.disabled = true;
+  archiveButton.textContent = "Archiving...";
+  taskStatus.textContent = "";
+  taskStatus.className = "";
+
+  try {
+    const response = await fetch("/tasks/archive-completed", { method: "POST" });
+    const data = await response.json();
+
+    if (!response.ok) throw new Error(data.error || "Could not archive completed tasks");
+
+    taskStatus.textContent = `${data.archived} tasks archived`;
+    taskStatus.className = "success";
+    await loadTasks();
+  } catch (error) {
+    taskStatus.textContent = error.message;
+    taskStatus.className = "error";
+  } finally {
+    archiveButton.disabled = false;
+    archiveButton.textContent = "Archive completed";
+  }
+}
+
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   addButton.disabled = true;
@@ -148,6 +174,8 @@ filterButtons.forEach((button) => {
     loadTasks();
   });
 });
+
+archiveButton.addEventListener("click", archiveCompletedTasks);
 
 setDefaultDueDate();
 loadTasks();
