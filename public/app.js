@@ -107,10 +107,39 @@ async function completeTask(taskId, row) {
   }
 }
 
+async function pollArchiveJob(jobId, attempt = 0) {
+  const response = await fetch(`/tasks/archive-jobs/${jobId}`);
+  const data = await response.json();
+
+  if (!response.ok) throw new Error(data.error || "Could not check archive status");
+
+  if (data.job.status === "completed") {
+    taskStatus.textContent = `${data.job.archivedCount} tasks archived`;
+    taskStatus.className = "success";
+    await loadTasks();
+    return;
+  }
+
+  if (data.job.status === "failed") {
+    taskStatus.textContent = "Archive failed after processing tasks";
+    taskStatus.className = "error";
+    await loadTasks();
+    throw new Error(data.job.error || "Archive processing failed");
+  }
+
+  if (attempt >= 20) {
+    taskStatus.textContent = "Archive is taking too long";
+    taskStatus.className = "error";
+    throw new Error("Archive job timed out");
+  }
+
+  setTimeout(() => pollArchiveJob(jobId, attempt + 1), 150);
+}
+
 async function archiveCompletedTasks() {
   archiveButton.disabled = true;
   archiveButton.textContent = "Archiving...";
-  taskStatus.textContent = "";
+  taskStatus.textContent = "Starting archive...";
   taskStatus.className = "";
 
   try {
@@ -119,9 +148,8 @@ async function archiveCompletedTasks() {
 
     if (!response.ok) throw new Error(data.error || "Could not archive completed tasks");
 
-    taskStatus.textContent = `${data.archived} tasks archived`;
-    taskStatus.className = "success";
-    await loadTasks();
+    taskStatus.textContent = `Archive job ${data.job.id} queued`;
+    await pollArchiveJob(data.job.id);
   } catch (error) {
     taskStatus.textContent = error.message;
     taskStatus.className = "error";

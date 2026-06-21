@@ -7,8 +7,10 @@ app.use(express.json());
 app.use(express.static("public"));
 
 let nextTaskId = 1;
+let nextArchiveJobId = 1;
 const tasks = [];
 const taskListCache = new Map();
+const archiveJobs = new Map();
 const CACHE_TTL_MS = 60_000;
 
 function statusFor(task) {
@@ -42,18 +44,75 @@ function invalidateTaskLists(statuses) {
   }
 }
 
-function createArchiveBatch(archivedTasks) {
+function createArchiveBatch(archivedTasks, job) {
   const batch = {
     id: `archive-${Date.now()}`,
     createdAt: new Date().toISOString(),
-    entries: []
+    entries: [],
+    context: { job }
   };
 
   for (const task of archivedTasks) {
-    batch.entries.push({ task, batch });
+    batch.entries.push({
+      task,
+      archivedAt: new Date().toISOString(),
+      sourceStatus: statusFor(task)
+    });
   }
 
   return batch;
+}
+
+function persistArchiveBatch(batch) {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      try {
+        resolve(JSON.stringify(batch));
+      } catch (error) {
+        reject(error);
+      }
+    }, 80);
+  });
+}
+
+function archiveJobResponse(job) {
+  return {
+    id: job.id,
+    status: job.status,
+    requestedCount: job.taskIds.length,
+    archivedCount: job.archivedCount,
+    error: job.error?.message ?? null
+  };
+}
+
+async function processArchiveJob(job) {
+  job.status = "processing";
+  const snapshot = tasks.slice();
+  const archivedTasks = tasks.filter((task) => job.taskIds.includes(task.id));
+  const batch = createArchiveBatch(archivedTasks, job);
+  job.batch = batch;
+
+  for (const task of archivedTasks) {
+    task.archivedAt = batch.createdAt;
+    const index = tasks.findIndex((item) => item.id === task.id);
+
+    if (index !== -1) {
+      tasks.splice(index, 1);
+    }
+  }
+
+  invalidateTaskLists(["completed"]);
+
+  try {
+    job.receipt = await persistArchiveBatch(batch);
+    job.archivedCount = archivedTasks.length;
+    job.status = "completed";
+  } catch (error) {
+    tasks.push(...snapshot);
+    job.status = "failed";
+    job.error = error;
+    console.error(`Archive job ${job.id} failed`, error);
+  }
 }
 
 app.get("/tasks", (req, res) => {
@@ -118,17 +177,28 @@ app.post("/tasks/archive-completed", (req, res) => {
     return res.status(400).json({ error: "There are no completed tasks to archive." });
   }
 
-  const archivedIds = new Set(archivedTasks.map((task) => task.id));
-  const batch = createArchiveBatch(archivedTasks);
+  const job = {
+    id: nextArchiveJobId++,
+    status: "queued",
+    taskIds: archivedTasks.map((task) => task.id),
+    archivedCount: 0,
+    error: null,
+    createdAt: new Date().toISOString()
+  };
 
-  for (let index = tasks.length - 1; index >= 0; index -= 1) {
-    if (archivedIds.has(tasks[index].id)) {
-      tasks.splice(index, 1);
-    }
+  archiveJobs.set(job.id, job);
+  setTimeout(() => processArchiveJob(job), 25);
+  return res.status(202).json({ job: archiveJobResponse(job) });
+});
+
+app.get("/tasks/archive-jobs/:id", (req, res) => {
+  const job = archiveJobs.get(Number(req.params.id));
+
+  if (!job) {
+    return res.status(404).json({ error: "Archive job not found." });
   }
 
-  invalidateTaskLists(["all", "active", "completed"]);
-  return res.json({ archived: archivedTasks.length, batch });
+  return res.json({ job: archiveJobResponse(job) });
 });
 
 app.patch("/tasks/:id/complete", (req, res) => {
