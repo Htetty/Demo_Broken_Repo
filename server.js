@@ -48,8 +48,7 @@ function createArchiveBatch(archivedTasks, job) {
   const batch = {
     id: `archive-${Date.now()}`,
     createdAt: new Date().toISOString(),
-    entries: [],
-    context: { job }
+    entries: []
   };
 
   for (const task of archivedTasks) {
@@ -90,7 +89,6 @@ async function processArchiveJob(job) {
   const snapshot = tasks.slice();
   const archivedTasks = tasks.filter((task) => job.taskIds.includes(task.id));
   const batch = createArchiveBatch(archivedTasks, job);
-  job.batch = batch;
 
   for (const task of archivedTasks) {
     task.archivedAt = batch.createdAt;
