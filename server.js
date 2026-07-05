@@ -104,7 +104,8 @@ async function processArchiveJob(job) {
   invalidateTaskLists(["completed"]);
 
   try {
-    job.receipt = await persistArchiveBatch(batch);
+    const batchToSerialize = { ...batch, context: { job: { id: job.id, status: job.status, taskIds: job.taskIds } } };
+    job.receipt = await persistArchiveBatch(batchToSerialize);
     job.archivedCount = archivedTasks.length;
     job.status = "completed";
   } catch (error) {
