@@ -48,8 +48,7 @@ function createArchiveBatch(archivedTasks, job) {
   const batch = {
     id: `archive-${Date.now()}`,
     createdAt: new Date().toISOString(),
-    entries: [],
-    context: { job }
+    entries: []
   };
 
   for (const task of archivedTasks) {
