@@ -49,7 +49,7 @@ function createArchiveBatch(archivedTasks, job) {
     id: `archive-${Date.now()}`,
     createdAt: new Date().toISOString(),
     entries: [],
-    context: { job }
+    context: { jobId: job.id, jobCreatedAt: job.createdAt }
   };
 
   for (const task of archivedTasks) {
@@ -90,7 +90,6 @@ async function processArchiveJob(job) {
   const snapshot = tasks.slice();
   const archivedTasks = tasks.filter((task) => job.taskIds.includes(task.id));
   const batch = createArchiveBatch(archivedTasks, job);
-  job.batch = batch;
 
   for (const task of archivedTasks) {
     task.archivedAt = batch.createdAt;
@@ -118,7 +117,7 @@ async function processArchiveJob(job) {
 app.get("/tasks", (req, res) => {
   const status = req.query.status ?? "all";
 
-  if (!["all", "active", "completed"].includes(status)) {
+  if (![ "all", "active", "completed"].includes(status)) {
     return res.status(400).json({ error: "Unknown task status." });
   }
 
@@ -148,7 +147,7 @@ app.post("/tasks", (req, res) => {
     return res.status(400).json({ error: "A task title is required." });
   }
 
-  if (!["low", "medium", "high"].includes(priority)) {
+  if (![ "low", "medium", "high"].includes(priority)) {
     return res.status(400).json({ error: "Priority must be low, medium, or high." });
   }
 
