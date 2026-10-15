@@ -89,9 +89,7 @@ async function processArchiveJob(job) {
   job.status = "processing";
   const snapshot = tasks.slice();
   const archivedTasks = tasks.filter((task) => job.taskIds.includes(task.id));
-  const batch = createArchiveBatch(archivedTasks, job);
-  job.batch = batch;
-
+  const batch = createArchiveBatch(archivedTasks, null);
   for (const task of archivedTasks) {
     task.archivedAt = batch.createdAt;
     const index = tasks.findIndex((item) => item.id === task.id);
@@ -108,6 +106,7 @@ async function processArchiveJob(job) {
     job.archivedCount = archivedTasks.length;
     job.status = "completed";
   } catch (error) {
+    tasks.length = 0;
     tasks.push(...snapshot);
     job.status = "failed";
     job.error = error;
