@@ -49,7 +49,7 @@ function createArchiveBatch(archivedTasks, job) {
     id: `archive-${Date.now()}`,
     createdAt: new Date().toISOString(),
     entries: [],
-    context: { job }
+    context: { jobId: job.id }
   };
 
   for (const task of archivedTasks) {
@@ -108,7 +108,7 @@ async function processArchiveJob(job) {
     job.archivedCount = archivedTasks.length;
     job.status = "completed";
   } catch (error) {
-    tasks.push(...snapshot);
+    tasks.splice(0, tasks.length, ...snapshot);
     job.status = "failed";
     job.error = error;
     console.error(`Archive job ${job.id} failed`, error);
