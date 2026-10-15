@@ -49,7 +49,7 @@ function createArchiveBatch(archivedTasks, job) {
     id: `archive-${Date.now()}`,
     createdAt: new Date().toISOString(),
     entries: [],
-    context: { job }
+    context: { jobId: job.id }
   };
 
   for (const task of archivedTasks) {
@@ -101,7 +101,7 @@ async function processArchiveJob(job) {
     }
   }
 
-  invalidateTaskLists(["completed"]);
+  invalidateTaskLists(["all", "completed"]);
 
   try {
     job.receipt = await persistArchiveBatch(batch);
