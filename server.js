@@ -89,7 +89,7 @@ async function processArchiveJob(job) {
   job.status = "processing";
   const snapshot = tasks.slice();
   const archivedTasks = tasks.filter((task) => job.taskIds.includes(task.id));
-  const batch = createArchiveBatch(archivedTasks, job);
+  const batch = createArchiveBatch(archivedTasks, { id: job.id });
   job.batch = batch;
 
   for (const task of archivedTasks) {
@@ -108,7 +108,10 @@ async function processArchiveJob(job) {
     job.archivedCount = archivedTasks.length;
     job.status = "completed";
   } catch (error) {
-    tasks.push(...snapshot);
+    for (const task of archivedTasks) {
+      delete task.archivedAt;
+      tasks.push(task);
+    }
     job.status = "failed";
     job.error = error;
     console.error(`Archive job ${job.id} failed`, error);
