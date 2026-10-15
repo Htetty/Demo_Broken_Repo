@@ -148,7 +148,7 @@ app.post("/tasks", (req, res) => {
     return res.status(400).json({ error: "A task title is required." });
   }
 
-  if (!["low", "medium", "high"].includes(priority)) {
+  if (![ "low", "medium", "high"].includes(priority)) {
     return res.status(400).json({ error: "Priority must be low, medium, or high." });
   }
 
